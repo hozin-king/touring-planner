@@ -125,7 +125,7 @@ object TouringPlannerEngine {
     // penginapan hari sebelumnya; waypoint = titik hari itu (koordinat bila ada,
     // nama bila tidak); destination = titik terakhir hari itu.
     fun waypointPoint(w: Waypoint): String =
-        if (w.lat != 0.0 || w.lon != 0.0) "${w.lat},${w.lon}"
+        if (w.lat != 0.0 || w.lng != 0.0) "${w.lat},${w.lng}"
         else java.net.URLEncoder.encode(w.name, "UTF-8")
 
     fun generateDayMapsUrl(days: List<DayRoute>, dayIndex: Int): String {
