@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Hotel
 import androidx.compose.material.icons.filled.LocalGasStation
@@ -42,7 +43,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -50,6 +53,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -129,6 +135,7 @@ private val tglFmt = DateTimeFormatter.ofPattern("d MMM", Locale("id"))
 
 // ---------- layar utama ----------
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlannerScreen() {
     val context = LocalContext.current
@@ -183,37 +190,52 @@ fun PlannerScreen() {
         (if (from > 0) schedule[from - 1].fuelConsumedLiters else 0.0)
     val dayDate = startDT.plusDays(selectedDay.toLong())
 
+    val endDate = startDT.plusDays((days.size - 1).toLong())
+    val dateRangeFmt = DateTimeFormatter.ofPattern("d MMM yyyy", Locale("id"))
+
     Scaffold(
         containerColor = Asphalt,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text("Touring Planner", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        Text(
+                            "Sumatra • ${days.size} hari • ${startDT.format(tglFmt)}–${endDate.format(dateRangeFmt)}",
+                            color = Muted, fontSize = 12.sp
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showSettings = true }) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Parameter perjalanan")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Asphalt)
+            )
+        },
         bottomBar = {
             BottomAppBar(containerColor = CardBg) {
-                OutlinedButton(
-                    onClick = { showSettings = true },
-                    modifier = Modifier.padding(start = 12.dp)
-                ) {
-                    Icon(Icons.Filled.Settings, contentDescription = null,
-                        modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Parameter")
+                val dayUrl = remember(selectedDay, days) {
+                    TouringPlannerEngine.generateDayMapsUrl(days, selectedDay)
                 }
-                Spacer(Modifier.weight(1f))
                 Button(
                     onClick = {
-                        val i = Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse(TouringPlannerEngine.generateGoogleMapsUrl())
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse(dayUrl))
                         )
-                        context.startActivity(i)
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Amber, contentColor = Color(0xFF201503)
                     ),
-                    modifier = Modifier.padding(end = 12.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Icon(Icons.Filled.Map, contentDescription = null,
+                    Icon(Icons.Filled.Directions, contentDescription = null,
                         modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Google Maps", fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Rute Hari ${selectedDay + 1} di Maps", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -224,25 +246,38 @@ fun PlannerScreen() {
                 .fillMaxSize()
         ) {
             item {
-                // Header
-                Column(Modifier.fillMaxWidth().padding(20.dp)) {
-                    Text("SUMATRA TOURING", color = Muted, fontSize = 11.sp,
-                        letterSpacing = 3.sp)
-                    Text("Rute & ETA Planner", fontSize = 26.sp,
-                        fontWeight = FontWeight.Bold)
-                    Text("BeAT Deluxe Gen 2 • ${days.size} hari • " +
-                            "${startDT.format(tglFmt)}–${startDT.plusDays((days.size - 1).toLong()).format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale("id")))}",
-                        color = Muted, fontSize = 12.sp)
-                    Spacer(Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        StatCard("Total Jarak", "${"%.0f".format(total.totalDistanceKm)} km",
+                // Ringkasan perjalanan
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = CardBg),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 8.dp)
+                ) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SummaryStat("Total Jarak",
+                            "${"%.0f".format(total.totalDistanceKm)} km",
                             Modifier.weight(1f))
-                        StatCard("BBM", "${"%.1f".format(total.fuelConsumedLiters).replace('.', ',')} L",
+                        VerticalDivider(modifier = Modifier.height(38.dp), color = RailBg)
+                        SummaryStat("BBM",
+                            "${"%.1f".format(total.fuelConsumedLiters).replace('.', ',')} L",
                             Modifier.weight(1f))
-                        StatCard("Biaya BBM", formatIDRShort(total.fuelCostIdr),
+                        VerticalDivider(modifier = Modifier.height(38.dp), color = RailBg)
+                        SummaryStat("Biaya BBM", formatIDRShort(total.fuelCostIdr),
                             Modifier.weight(1f))
                     }
                 }
+                Text(
+                    "BeAT Deluxe Gen 2 • ${speed.toInt()} km/jam • Pertalite",
+                    color = Muted, fontSize = 11.sp,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+                )
             }
 
             item {
@@ -318,16 +353,42 @@ fun PlannerScreen() {
             }
 
             item {
-                // Judul hari
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // Kartu info hari
+                val lastItem = schedule[to - 1]
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = CardBg),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Text(days[selectedDay].label, fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp)
-                    Spacer(Modifier.width(8.dp))
-                    Text("${hariId[dayDate.dayOfWeek]}, ${dayDate.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale("id")))}",
-                        color = Muted, fontSize = 12.sp)
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Hari ${selectedDay + 1}",
+                                color = Muted, fontSize = 11.sp)
+                            Text(days[selectedDay].title,
+                                fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "${hariId[dayDate.dayOfWeek]}, ${dayDate.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale("id")))}",
+                                color = Muted, fontSize = 12.sp
+                            )
+                            Text(
+                                "${"%.0f".format(dayKm)} km • ${"%.1f".format(dayFuel).replace('.', ',')} L",
+                                color = Muted, fontSize = 12.sp
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("Tiba", color = Muted, fontSize = 11.sp)
+                            Text(lastItem.arrivalTimeStr.takeLast(5),
+                                color = Amber, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                        }
+                    }
                 }
             }
 
@@ -336,23 +397,7 @@ fun PlannerScreen() {
             }
 
             item {
-                // Footer hari
-                val last = schedule[to - 1]
-                Surface(
-                    color = CardBg, shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth().padding(16.dp)
-                ) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Tiba ${last.arrivalTimeStr.takeLast(5)}",
-                            fontWeight = FontWeight.Bold, color = Amber, fontSize = 14.sp)
-                        Text("${"%.0f".format(dayKm)} km • ${"%.1f".format(dayFuel).replace('.', ',')} L",
-                            color = Muted, fontSize = 13.sp)
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
             }
         }
     }
@@ -372,16 +417,11 @@ fun PlannerScreen() {
 }
 
 @Composable
-private fun StatCard(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = CardBg),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(Modifier.padding(12.dp)) {
-            Text(label, color = Muted, fontSize = 11.sp)
-            Text(value, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Amber)
-        }
+private fun SummaryStat(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Amber)
+        Spacer(Modifier.height(2.dp))
+        Text(label, color = Muted, fontSize = 11.sp)
     }
 }
 
@@ -495,6 +535,23 @@ private fun SettingsDialog(
                 }
                 Text("Jadwal & peringatan dihitung ulang otomatis.",
                     color = Muted, fontSize = 11.sp)
+                val ctx = LocalContext.current
+                OutlinedButton(
+                    onClick = {
+                        ctx.startActivity(
+                            Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse(TouringPlannerEngine.generateGoogleMapsUrl())
+                            )
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Filled.Map, contentDescription = null,
+                        modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Buka full loop 9 hari")
+                }
             }
         },
         confirmButton = {

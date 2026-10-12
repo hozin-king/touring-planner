@@ -121,6 +121,30 @@ object TouringPlannerEngine {
     /** URL full loop rute (link Google Maps milik user). */
     fun generateGoogleMapsUrl(): String = MAPS_LOOP_URL
 
+    // URL rute Google Maps untuk SATU hari: origin = titik start (hari 1) atau
+    // penginapan hari sebelumnya; waypoint = titik hari itu (koordinat bila ada,
+    // nama bila tidak); destination = titik terakhir hari itu.
+    fun waypointPoint(w: Waypoint): String =
+        if (w.lat != 0.0 || w.lon != 0.0) "${w.lat},${w.lon}"
+        else java.net.URLEncoder.encode(w.name, "UTF-8")
+
+    fun generateDayMapsUrl(days: List<DayRoute>, dayIndex: Int): String {
+        val day = days[dayIndex]
+        val originWp = if (dayIndex == 0) day.waypoints.first()
+                       else days[dayIndex - 1].waypoints.last()
+        val stops = if (day.waypoints.firstOrNull()?.category == "start") day.waypoints.drop(1)
+                    else day.waypoints
+        val dest = stops.last()
+        val mids = stops.dropLast(1)
+        val sb = StringBuilder("https://www.google.com/maps/dir/?api=1")
+        sb.append("&origin=").append(waypointPoint(originWp))
+        sb.append("&destination=").append(waypointPoint(dest))
+        if (mids.isNotEmpty())
+            sb.append("&waypoints=").append(mids.joinToString("|") { waypointPoint(it) })
+        sb.append("&travelmode=driving")
+        return sb.toString()
+    }
+
     const val MAPS_LOOP_URL: String =
         "https://www.google.com/maps/dir/" +
         "MADRASAH+DINIYYAH+TAKMILIYAH+MIFTAHUL+HUDA+BUNGO+TANJUNG/" +
