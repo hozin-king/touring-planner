@@ -231,7 +231,7 @@ fun PlannerScreen() {
                     Text("Rute & ETA Planner", fontSize = 26.sp,
                         fontWeight = FontWeight.Bold)
                     Text("BeAT Deluxe Gen 2 • ${days.size} hari • " +
-                            "${startDT.format(tglFmt)}–${startDT.plusDays((days.size - 1).toLong()).format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale("id"))}",
+                            "${startDT.format(tglFmt)}–${startDT.plusDays((days.size - 1).toLong()).format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale("id")))}",
                         color = Muted, fontSize = 12.sp)
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
